@@ -1,16 +1,17 @@
 package io.sentry.connection;
 
-import io.sentry.SentryClient;
-import io.sentry.environment.SentryEnvironment;
-import io.sentry.event.Event;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import io.sentry.SentryClient;
+import io.sentry.environment.SentryEnvironment;
+import io.sentry.event.Event;
 
 /**
  * Asynchronous usage of a connection.
@@ -54,13 +55,13 @@ public class AsyncConnection implements Connection {
      * Will propagate the {@link #close()} operation.
      *
      * @param actualConnection connection used to send the events.
-     * @param executorService  executorService used to process events, if null, the executorService will automatically
-     *                         be set to {@code Executors.newSingleThreadExecutor()}
+     * @param executorService executorService used to process events, if null, the executorService will automatically
+     *            be set to {@code Executors.newSingleThreadExecutor()}
      * @param gracefulShutdown Indicates whether or not the shutdown operation should be managed by a ShutdownHook.
-     * @param shutdownTimeout  timeout for graceful shutdown of the executor, in milliseconds.
+     * @param shutdownTimeout timeout for graceful shutdown of the executor, in milliseconds.
      */
-    public AsyncConnection(Connection actualConnection, ExecutorService executorService, boolean gracefulShutdown,
-                           long shutdownTimeout) {
+    public AsyncConnection(final Connection actualConnection, final ExecutorService executorService,
+            final boolean gracefulShutdown, final long shutdownTimeout) {
         this.actualConnection = actualConnection;
         if (executorService == null) {
             this.executorService = Executors.newSingleThreadExecutor();
@@ -69,17 +70,8 @@ public class AsyncConnection implements Connection {
         }
         if (gracefulShutdown) {
             this.gracefulShutdown = gracefulShutdown;
-            addShutdownHook();
         }
         this.shutdownTimeout = shutdownTimeout;
-    }
-
-    /**
-     * Adds a hook to shutdown the {@link #executorService} gracefully when the JVM shuts down.
-     */
-    private void addShutdownHook() {
-        // JUL loggers are shutdown by an other shutdown hook, it's possible that nothing will get actually logged.
-        Runtime.getRuntime().addShutdownHook(shutDownHook);
     }
 
     /**
@@ -88,14 +80,14 @@ public class AsyncConnection implements Connection {
      * The event will be added to a queue and will be handled by a separate {@code Thread} later on.
      */
     @Override
-    public void send(Event event) {
+    public void send(final Event event) {
         if (!closed) {
             executorService.execute(new EventSubmitter(event));
         }
     }
 
     @Override
-    public void addEventSendCallback(EventSendCallback eventSendCallback) {
+    public void addEventSendCallback(final EventSendCallback eventSendCallback) {
         actualConnection.addEventSendCallback(eventSendCallback);
     }
 
@@ -129,7 +121,7 @@ public class AsyncConnection implements Connection {
         try {
             if (shutdownTimeout == -1L) {
                 // Block until the executor terminates, but log periodically.
-                long waitBetweenLoggingMs = 5000L;
+                final long waitBetweenLoggingMs = 5000L;
                 while (true) {
                     if (executorService.awaitTermination(waitBetweenLoggingMs, TimeUnit.MILLISECONDS)) {
                         break;
@@ -138,14 +130,14 @@ public class AsyncConnection implements Connection {
                 }
             } else if (!executorService.awaitTermination(shutdownTimeout, TimeUnit.MILLISECONDS)) {
                 logger.warn("Graceful shutdown took too much time, forcing the shutdown.");
-                List<Runnable> tasks = executorService.shutdownNow();
+                final List<Runnable> tasks = executorService.shutdownNow();
                 logger.warn("{} tasks failed to execute before shutdown.", tasks.size());
             }
             logger.debug("Shutdown finished.");
-        } catch (InterruptedException e) {
+        } catch (final InterruptedException e) {
             Thread.currentThread().interrupt();
             logger.warn("Graceful shutdown interrupted, forcing the shutdown.");
-            List<Runnable> tasks = executorService.shutdownNow();
+            final List<Runnable> tasks = executorService.shutdownNow();
             logger.warn("{} tasks failed to execute before shutdown.", tasks.size());
         } finally {
             actualConnection.close();
@@ -159,7 +151,7 @@ public class AsyncConnection implements Connection {
     private final class EventSubmitter implements Runnable {
         private final Event event;
 
-        private EventSubmitter(Event event) {
+        private EventSubmitter(final Event event) {
             this.event = event;
         }
 
@@ -169,9 +161,9 @@ public class AsyncConnection implements Connection {
             try {
                 // The current thread is managed by sentry
                 actualConnection.send(event);
-            } catch (LockedDownException e) {
+            } catch (final LockedDownException e) {
                 lockdownLogger.warn("The connection to Sentry is currently locked down.", e);
-            } catch (Exception e) {
+            } catch (final Exception e) {
                 logger.error("An exception occurred while sending the event to Sentry.", e);
             } finally {
                 SentryEnvironment.stopManagingThread();
@@ -195,8 +187,8 @@ public class AsyncConnection implements Connection {
             SentryEnvironment.startManagingThread();
             try {
                 // The current thread is managed by sentry
-                AsyncConnection.this.doClose();
-            } catch (Exception e) {
+                doClose();
+            } catch (final Exception e) {
                 logger.error("An exception occurred while closing the connection.", e);
             } finally {
                 SentryEnvironment.stopManagingThread();
