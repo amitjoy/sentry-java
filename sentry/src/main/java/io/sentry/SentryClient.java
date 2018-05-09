@@ -305,6 +305,15 @@ public class SentryClient {
     public void addTag(String name, String value) {
         this.tags.put(name, value);
     }
+    
+    /**
+     * Remove a tag with all future {@link Event}s.
+     *
+     * @param name Tag name
+     */
+    public void removeTag(String name) {
+        this.tags.remove(name);
+    }
 
     /**
      * Set the tags that will be sent with all future {@link Event}s.
